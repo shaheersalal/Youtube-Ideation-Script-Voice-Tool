@@ -1,0 +1,7 @@
+{
+  "name": "Youtube Ideation Tool",
+  "description": "An end-to-end YouTube content creation tool that generates ideas, scripts, AI voices, and Veo-powered videos with SEO optimization.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
