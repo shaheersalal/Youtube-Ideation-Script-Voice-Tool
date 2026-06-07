@@ -68,14 +68,16 @@ const App: React.FC = () => {
     title: string;
     description: string;
     estimate: CostEstimate;
+    loadingMessage: string;
     run: () => Promise<void>;
   }
   const [pendingGate, setPendingGate] = useState<GateAction | null>(null);
 
   const confirmGate = async () => {
     if (!pendingGate) return;
-    const { run } = pendingGate;
+    const { run, loadingMessage } = pendingGate;
     setPendingGate(null);
+    setLoadingMsg(loadingMessage);
     setLoading(true);
     try {
       await run();
@@ -97,31 +99,33 @@ const App: React.FC = () => {
   const handleNext = () => setState(prev => ({ ...prev, currentStep: Math.min(prev.currentStep + 1, LAST_STEP) as Step }));
   const handlePrev = () => setState(prev => ({ ...prev, currentStep: Math.max(prev.currentStep - 1, Step.DOMAIN_INPUT) as Step }));
 
-  const generateIdeas = async () => {
+  const requestIdeas = () => {
     if (!state.domain) return;
-    setLoading(true);
-    setLoadingMsg(`Analyzing ${state.domain} domain for viral opportunities...`);
-    try {
-      const ideas = await pipeline.generateIdeas(state.domain);
-      setState(prev => ({ ...prev, ideas, currentStep: Step.IDEAS }));
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    setPendingGate({
+      stepKey: PipelineStep.IDEAS,
+      title: "Ideas",
+      description: `Scan the "${state.domain}" niche and generate viral video concepts with estimated reach and viral potential scores.`,
+      estimate: estimateStep(PipelineStep.IDEAS),
+      loadingMessage: `Analyzing ${state.domain} domain for viral opportunities...`,
+      run: async () => {
+        const ideas = await pipeline.generateIdeas(state.domain);
+        setState(prev => ({ ...prev, ideas, currentStep: Step.IDEAS }));
+      },
+    });
   };
 
-  const selectIdea = async (idea: VideoIdea) => {
-    setLoading(true);
-    setLoadingMsg('Crafting 5 unique script variations...');
-    try {
-      const scripts = await pipeline.generateScripts(idea);
-      setState(prev => ({ ...prev, selectedIdea: idea, scripts, currentStep: Step.SCRIPTS }));
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const requestScripts = (idea: VideoIdea) => {
+    setPendingGate({
+      stepKey: PipelineStep.SCRIPTS,
+      title: "Scripts",
+      description: `Generate 5 script variations for "${idea.title}" — each with a distinct hook, body, and call-to-action.`,
+      estimate: estimateStep(PipelineStep.SCRIPTS),
+      loadingMessage: "Crafting 5 unique script variations...",
+      run: async () => {
+        const scripts = await pipeline.generateScripts(idea);
+        setState(prev => ({ ...prev, selectedIdea: idea, scripts, currentStep: Step.SCRIPTS }));
+      },
+    });
   };
 
   const selectScript = (script: ScriptOption) => {
@@ -164,8 +168,8 @@ const App: React.FC = () => {
       title: "Full Audio",
       description: `Synthesize the complete script as a WAV file narrated by ${state.selectedVoice.name}. Scripts longer than 4,000 characters are auto-chunked and merged.`,
       estimate,
+      loadingMessage: `Synthesizing narration with ${state.selectedVoice.name} — this may take a moment...`,
       run: async () => {
-        setLoadingMsg(`Synthesizing narration with ${state.selectedVoice!.name} — this may take a moment...`);
         const output = await pipeline.generateFullAudio(
           state.selectedScript!.content,
           state.selectedVoice!.voiceName
@@ -175,22 +179,18 @@ const App: React.FC = () => {
     });
   };
 
-  const finalizeProject = async () => {
-    if (!state.selectedVoice) return;
-    setLoading(true);
-    setLoadingMsg('Extracting viral SEO keywords...');
-    try {
-      const keywords = await pipeline.generateKeywords(state.domain, state.selectedIdea?.title || "");
-      setState(prev => ({ 
-        ...prev, 
-        seoKeywords: keywords,
-        currentStep: Step.FINAL_SUMMARY 
-      }));
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const requestFinalize = () => {
+    setPendingGate({
+      stepKey: PipelineStep.KEYWORDS,
+      title: "Keywords",
+      description: `Extract viral SEO keywords for "${state.selectedIdea?.title ?? state.domain}" to complete your content strategy kit.`,
+      estimate: estimateStep(PipelineStep.KEYWORDS),
+      loadingMessage: "Extracting viral SEO keywords...",
+      run: async () => {
+        const keywords = await pipeline.generateKeywords(state.domain, state.selectedIdea?.title || "");
+        setState(prev => ({ ...prev, seoKeywords: keywords, currentStep: Step.FINAL_SUMMARY }));
+      },
+    });
   };
 
   const renderContent = () => {
@@ -225,10 +225,10 @@ const App: React.FC = () => {
                 className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-8 py-6 text-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-2xl"
                 value={state.domain}
                 onChange={(e) => setState(prev => ({ ...prev, domain: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && generateIdeas()}
+                onKeyDown={(e) => e.key === 'Enter' && requestIdeas()}
               />
-              <button 
-                onClick={generateIdeas}
+              <button
+                onClick={requestIdeas}
                 disabled={!state.domain}
                 className="absolute right-4 top-4 bottom-4 px-10 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-bold transition-all shadow-xl shadow-blue-500/20 active:scale-95"
               >
@@ -246,7 +246,7 @@ const App: React.FC = () => {
               {state.ideas.map((idea) => (
                 <div 
                   key={idea.id}
-                  onClick={() => selectIdea(idea)}
+                  onClick={() => requestScripts(idea)}
                   className="group cursor-pointer bg-slate-900 border border-slate-800 hover:border-blue-500 p-8 rounded-[2.5rem] transition-all hover:-translate-y-2 hover:shadow-3xl hover:shadow-blue-500/10 relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-100 transition-opacity">
@@ -538,7 +538,7 @@ const App: React.FC = () => {
             )}
 
             <button
-              onClick={finalizeProject}
+              onClick={requestFinalize}
               className="w-full py-5 bg-blue-600 hover:bg-blue-500 rounded-3xl font-black text-lg shadow-2xl shadow-blue-500/20 transition-all active:scale-95"
             >
               GENERATE SEO &amp; SUMMARY
