@@ -7,16 +7,19 @@ interface StepIndicatorProps {
 }
 
 const steps = [
-  { label: 'Domain', icon: 'fa-search' },
-  { label: 'Ideas', icon: 'fa-lightbulb' },
-  { label: 'Scripts', icon: 'fa-file-alt' },
-  { label: 'Voice', icon: 'fa-microphone' },
-  { label: 'Finish', icon: 'fa-check-double' },
+  { label: 'Domain',  icon: 'fa-search'       },
+  { label: 'Ideas',   icon: 'fa-lightbulb'    },
+  { label: 'Scripts', icon: 'fa-file-alt'     },
+  { label: 'Voice',   icon: 'fa-microphone'   },
+  { label: 'Audio',   icon: 'fa-headphones'   },
+  { label: 'Theme',   icon: 'fa-palette'      },
+  { label: 'Scenes',  icon: 'fa-images'       },
+  { label: 'Summary', icon: 'fa-check-double' },
 ];
 
 export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => {
   return (
-    <div className="flex justify-between items-center w-full max-w-3xl mx-auto mb-12 px-4">
+    <div className="flex justify-between items-center w-full max-w-5xl mx-auto mb-12 px-4">
       {steps.map((step, index) => {
         const isActive = index <= currentStep;
         const isCurrent = index === currentStep;

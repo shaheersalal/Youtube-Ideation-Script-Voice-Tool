@@ -1,11 +1,13 @@
 
 export enum Step {
-  DOMAIN_INPUT = 0,
-  IDEAS = 1,
-  SCRIPTS = 2,
+  DOMAIN_INPUT    = 0,
+  IDEAS           = 1,
+  SCRIPTS         = 2,
   VOICE_SELECTION = 3,
-  FULL_AUDIO = 4,
-  FINAL_SUMMARY = 5
+  FULL_AUDIO      = 4,
+  VIDEO_THEME     = 5,
+  VIDEO_GENERATION = 6,
+  FINAL_SUMMARY   = 7
 }
 
 export interface VideoIdea {

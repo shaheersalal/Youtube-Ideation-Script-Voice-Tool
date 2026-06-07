@@ -613,7 +613,7 @@ const App: React.FC = () => {
            </button>
            <div className="flex flex-col items-center min-w-[100px]">
              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">PROGRESS</span>
-             <span className="text-xl font-black text-white">{state.currentStep + 1} <span className="text-slate-700">/ 6</span></span>
+             <span className="text-xl font-black text-white">{state.currentStep + 1} <span className="text-slate-700">/ 8</span></span>
            </div>
            <button 
              onClick={handleNext}
