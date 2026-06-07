@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Step, AppState, VideoIdea, ScriptOption, VoiceOption } from './types';
 import { StepIndicator } from './components/StepIndicator';
 import { PermissionGate } from './components/PermissionGate';
+import { VideoThemeForm, defaultVideoTheme } from './components/VideoThemeForm';
 import * as pipeline from './services/pipeline';
 import { PipelineStep } from './services/pipeline';
 import { estimateStep, CostEstimate } from './services/costEstimator';
@@ -54,7 +55,8 @@ const App: React.FC = () => {
     scripts: [],
     voiceGender: 'male',
     voices: [],
-    seoKeywords: []
+    seoKeywords: [],
+    videoTheme: defaultVideoTheme,
   });
 
   const [loading, setLoading] = useState(false);
@@ -175,6 +177,24 @@ const App: React.FC = () => {
           state.selectedVoice!.voiceName
         );
         setState(prev => ({ ...prev, audioOutput: output, currentStep: Step.FULL_AUDIO }));
+      },
+    });
+  };
+
+  const requestStoryboard = () => {
+    const sceneCount = state.videoTheme?.scenes.length ?? 3;
+    setPendingGate({
+      stepKey: PipelineStep.SCENE_IMAGES,
+      title: "Scene Images",
+      description: `Generate ${sceneCount} storyboard images via Imagen 3 — one per scene section with your chosen visual style and color palette.`,
+      estimate: estimateStep(PipelineStep.SCENE_IMAGES, { sceneCount }),
+      loadingMessage: `Rendering ${sceneCount} storyboard scenes with Imagen 3...`,
+      run: async () => {
+        const sceneImages = await pipeline.generateSceneImages(
+          state.videoTheme!.scenes,
+          state.videoTheme!
+        );
+        setState(prev => ({ ...prev, sceneImages, currentStep: Step.VIDEO_GENERATION }));
       },
     });
   };
@@ -546,6 +566,82 @@ const App: React.FC = () => {
           </div>
         );
 
+      case Step.VIDEO_THEME:
+        return (
+          <div className="max-w-3xl mx-auto space-y-10 animate-fadeIn">
+            <div className="text-center space-y-3">
+              <h2 className="text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-white to-slate-500">
+                Design Your Storyboard
+              </h2>
+              <p className="text-slate-500 text-lg">Configure the visual language Imagen 3 will use to render each scene.</p>
+            </div>
+
+            <VideoThemeForm
+              value={state.videoTheme!}
+              onChange={(theme) => setState(prev => ({ ...prev, videoTheme: theme }))}
+            />
+
+            <div className="pt-4">
+              <button
+                onClick={requestStoryboard}
+                className="w-full py-6 bg-blue-600 hover:bg-blue-500 rounded-3xl font-black text-xl shadow-2xl shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-4"
+              >
+                <i className="fas fa-images"></i> GENERATE STORYBOARD
+              </button>
+            </div>
+          </div>
+        );
+
+      case Step.VIDEO_GENERATION:
+        return (
+          <div className="max-w-5xl mx-auto space-y-10 animate-fadeIn">
+            <div className="text-center space-y-3">
+              <div className="w-20 h-20 bg-blue-500/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
+                <i className="fas fa-images text-blue-400 text-3xl"></i>
+              </div>
+              <h2 className="text-4xl font-black tracking-tighter">Storyboard</h2>
+              <p className="text-slate-500">Scene-by-scene visual breakdown for your video.</p>
+            </div>
+
+            {state.sceneImages && state.sceneImages.length > 0 ? (
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {state.sceneImages.map((base64, i) => (
+                    <div key={i} className="space-y-3">
+                      <div className="aspect-video bg-slate-900 rounded-[1.5rem] overflow-hidden border border-slate-800">
+                        <img
+                          src={`data:image/png;base64,${base64}`}
+                          alt={`Scene ${i + 1}: ${state.videoTheme?.scenes[i]?.section ?? ''}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-center text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                        Scene {i + 1} · {state.videoTheme?.scenes[i]?.section}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={requestFinalize}
+                  className="w-full py-5 bg-blue-600 hover:bg-blue-500 rounded-3xl font-black text-lg shadow-2xl shadow-blue-500/20 transition-all active:scale-95"
+                >
+                  GENERATE SEO &amp; SUMMARY
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-16 space-y-6">
+                <p className="text-slate-500">No storyboard generated yet. Go back and click GENERATE STORYBOARD.</p>
+                <button
+                  onClick={handlePrev}
+                  className="px-10 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl font-bold transition-all"
+                >
+                  <i className="fas fa-arrow-left mr-2"></i> Back to Theme
+                </button>
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return null;
     }
@@ -619,7 +715,8 @@ const App: React.FC = () => {
              onClick={handleNext}
              disabled={
                (state.currentStep === Step.VOICE_SELECTION && !state.selectedVoice) ||
-               (state.currentStep === Step.FULL_AUDIO && !state.audioOutput)
+               (state.currentStep === Step.FULL_AUDIO && !state.audioOutput) ||
+               (state.currentStep === Step.VIDEO_GENERATION && !state.sceneImages)
              }
              className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center hover:bg-blue-500 disabled:opacity-50 transition-all active:scale-90 shadow-2xl shadow-blue-500/30"
            >
