@@ -29,6 +29,27 @@ export interface VoiceOption {
   voiceName: string;
 }
 
+export interface AudioOutput {
+  blob: Blob;
+  durationSeconds: number;
+  sizeBytes: number;
+}
+
+export interface SceneDescription {
+  section: string; // e.g. "hook", "body", "cta"
+  description: string;
+}
+
+export interface VideoTheme {
+  style: "cinematic" | "minimal" | "energetic" | "corporate";
+  mood: "inspiring" | "educational" | "entertaining" | "dramatic";
+  palette: "dark" | "light" | "vibrant" | "muted";
+  aspectRatio: "16:9" | "9:16" | "1:1";
+  textOverlay: "subtitles" | "chapters" | "none";
+  scenes: SceneDescription[];
+  userVision: string;
+}
+
 export interface AppState {
   currentStep: Step;
   domain: string;
@@ -36,8 +57,11 @@ export interface AppState {
   ideas: VideoIdea[];
   selectedScript?: ScriptOption;
   scripts: ScriptOption[];
-  voiceGender: 'male' | 'female';
+  voiceGender: "male" | "female";
   selectedVoice?: VoiceOption;
   voices: VoiceOption[];
   seoKeywords: string[];
+  audioOutput?: AudioOutput;
+  videoTheme?: VideoTheme;
+  sceneImages?: string[];
 }

@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Step, AppState, VideoIdea, ScriptOption, VoiceOption } from './types';
 import { StepIndicator } from './components/StepIndicator';
-import * as aiService from './services/gemini';
+import * as pipeline from './services/pipeline';
 
 const MALE_VOICES: VoiceOption[] = [
   { id: '1', name: 'Charon', gender: 'male', voiceName: 'Charon' },
@@ -76,7 +76,7 @@ const App: React.FC = () => {
     setLoading(true);
     setLoadingMsg(`Analyzing ${state.domain} domain for viral opportunities...`);
     try {
-      const ideas = await aiService.generateIdeas(state.domain);
+      const ideas = await pipeline.generateIdeas(state.domain);
       setState(prev => ({ ...prev, ideas, currentStep: Step.IDEAS }));
     } catch (err: any) {
       setError(err.message);
@@ -89,7 +89,7 @@ const App: React.FC = () => {
     setLoading(true);
     setLoadingMsg('Crafting 5 unique script variations...');
     try {
-      const scripts = await aiService.generateScripts(idea);
+      const scripts = await pipeline.generateScripts(idea);
       setState(prev => ({ ...prev, selectedIdea: idea, scripts, currentStep: Step.SCRIPTS }));
     } catch (err: any) {
       setError(err.message);
@@ -113,7 +113,7 @@ const App: React.FC = () => {
     const text = fullScript ? (state.selectedScript?.content.substring(0, 300) + "...") : "Hello, I am ready to narrate your content.";
     setLoadingMsg(fullScript ? 'Synthesizing script preview...' : `Auditioning ${voice.name}...`);
     try {
-      const base64 = await aiService.generateVoiceAudio(text, voice.voiceName);
+      const base64 = await pipeline.generateVoicePreview(text, voice.voiceName);
       const ctx = getAudioContext();
       const buffer = await decodeAudioData(decode(base64), ctx, 24000, 1);
       const source = ctx.createBufferSource();
@@ -133,7 +133,7 @@ const App: React.FC = () => {
     setLoading(true);
     setLoadingMsg('Extracting viral SEO keywords...');
     try {
-      const keywords = await aiService.generateKeywords(state.domain, state.selectedIdea?.title || "");
+      const keywords = await pipeline.generateKeywords(state.domain, state.selectedIdea?.title || "");
       setState(prev => ({ 
         ...prev, 
         seoKeywords: keywords,
