@@ -1,7 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
+const LS_KEY = 'gemini_api_key';
+let cachedKey = '';
+let ai: GoogleGenAI | null = null;
+
 export const getAI = (): GoogleGenAI => {
-  const key = process.env.API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY is not set. Add it to .env.local");
-  return new GoogleGenAI({ apiKey: key });
+  const key = localStorage.getItem(LS_KEY) || process.env.API_KEY || '';
+  if (!key) throw new Error('No Gemini API key found. Enter your key in the app settings.');
+  if (!ai || key !== cachedKey) {
+    ai = new GoogleGenAI({ apiKey: key });
+    cachedKey = key;
+  }
+  return ai;
 };

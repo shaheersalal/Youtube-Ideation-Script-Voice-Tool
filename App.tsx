@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Step } from './types';
 import { StepIndicator } from './components/StepIndicator';
 import { PermissionGate } from './components/PermissionGate';
+import { ApiKeySetup } from './components/ApiKeySetup';
 import { useAppHandlers } from './hooks/useAppHandlers';
 import { DomainInputStep }    from './components/steps/DomainInputStep';
 import { IdeasStep }          from './components/steps/IdeasStep';
@@ -12,7 +13,14 @@ import { VideoThemeStep }     from './components/steps/VideoThemeStep';
 import { VideoGenerationStep } from './components/steps/VideoGenerationStep';
 import { FinalSummaryStep }   from './components/steps/FinalSummaryStep';
 
+const LS_KEY = 'gemini_api_key';
+
 const App: React.FC = () => {
+  const [apiKeySet, setApiKeySet] = useState<boolean>(() =>
+    !!(localStorage.getItem(LS_KEY) || process.env.API_KEY)
+  );
+  const [showKeyEdit, setShowKeyEdit] = useState(false);
+
   const {
     state, setState, loading, loadingMsg, error, setError,
     pendingGate, setPendingGate, confirmGate,
@@ -20,6 +28,10 @@ const App: React.FC = () => {
     requestIdeas, requestScripts, selectScript, playVoice,
     requestAudioGeneration, requestStoryboard, requestFinalize,
   } = useAppHandlers();
+
+  if (!apiKeySet) {
+    return <ApiKeySetup onSave={() => setApiKeySet(true)} />;
+  }
 
   const renderContent = () => {
     if (loading) return (
@@ -53,6 +65,9 @@ const App: React.FC = () => {
         <PermissionGate isOpen={true} stepTitle={pendingGate.title} stepDescription={pendingGate.description}
           estimate={pendingGate.estimate} onConfirm={confirmGate} onBack={() => setPendingGate(null)} />
       )}
+      {showKeyEdit && (
+        <ApiKeySetup onSave={() => setShowKeyEdit(false)} onCancel={() => setShowKeyEdit(false)} />
+      )}
 
       <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur-3xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-6 flex justify-between items-center">
@@ -71,8 +86,12 @@ const App: React.FC = () => {
               <p className="text-xs font-bold text-blue-400">Gemini 2.5 Flash Ready</p>
             </div>
             <div className="h-10 w-[1px] bg-slate-800"></div>
-            <button className="w-12 h-12 rounded-2xl border border-slate-800 flex items-center justify-center hover:bg-slate-900 transition-all group">
-              <i className="fas fa-shield-alt text-slate-600 group-hover:text-blue-400"></i>
+            <button
+              onClick={() => setShowKeyEdit(true)}
+              title="Edit API Key"
+              className="w-12 h-12 rounded-2xl border border-slate-800 flex items-center justify-center hover:bg-slate-900 transition-all group"
+            >
+              <i className="fas fa-key text-slate-600 group-hover:text-blue-400"></i>
             </button>
           </div>
         </div>
