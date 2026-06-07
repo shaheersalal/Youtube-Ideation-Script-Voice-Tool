@@ -430,7 +430,7 @@ const App: React.FC = () => {
                       {state.selectedScript?.content}
                     </div>
                     <div className="flex justify-end">
-                       <button 
+                       <button
                          onClick={() => {
                            const blob = new Blob([state.selectedScript?.content || ""], {type: 'text/plain'});
                            const url = URL.createObjectURL(blob);
@@ -446,6 +446,73 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {(state.audioOutput || (state.sceneImages && state.sceneImages.length > 0)) && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 space-y-8 shadow-2xl">
+                    <h4 className="text-xl font-bold flex items-center gap-3">
+                      <i className="fas fa-box-open text-blue-400"></i> Project Assets
+                    </h4>
+
+                    {state.audioOutput && (
+                      <div className="flex items-center justify-between p-6 bg-black/40 rounded-2xl border border-slate-800">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 flex-shrink-0">
+                            <i className="fas fa-headphones"></i>
+                          </div>
+                          <div>
+                            <p className="font-black text-sm">Narration Audio</p>
+                            <p className="text-xs text-slate-500">
+                              {Math.floor(state.audioOutput.durationSeconds / 60)}:{String(Math.floor(state.audioOutput.durationSeconds % 60)).padStart(2, '0')} · {(state.audioOutput.sizeBytes / 1024).toFixed(1)} KB · WAV · {state.selectedVoice?.name}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const url = URL.createObjectURL(state.audioOutput!.blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${state.selectedIdea?.title ?? 'Narration'}_Audio.wav`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="px-6 py-3 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 rounded-xl text-xs font-black tracking-widest transition-all flex-shrink-0"
+                        >
+                          <i className="fas fa-download mr-2"></i> WAV
+                        </button>
+                      </div>
+                    )}
+
+                    {state.sceneImages && state.sceneImages.length > 0 && (
+                      <div className="space-y-5">
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Storyboard Scenes</p>
+                        <div className="grid grid-cols-3 gap-4">
+                          {state.sceneImages.map((base64, i) => (
+                            <div key={i} className="space-y-2">
+                              <div className="aspect-video bg-slate-800 rounded-2xl overflow-hidden border border-slate-700">
+                                <img
+                                  src={`data:image/png;base64,${base64}`}
+                                  alt={`Scene ${i + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = `data:image/png;base64,${base64}`;
+                                  a.download = `Scene_${i + 1}_${state.videoTheme?.scenes[i]?.section ?? ''}.png`;
+                                  a.click();
+                                }}
+                                className="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 text-slate-400"
+                              >
+                                <i className="fas fa-download text-xs"></i> Scene {i + 1}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-8">
@@ -485,9 +552,9 @@ const App: React.FC = () => {
                 <div className="bg-blue-900/10 p-10 rounded-[3rem] border border-blue-500/10">
                    <h3 className="font-black text-xl mb-4">Next Steps</h3>
                    <ul className="space-y-4 text-xs font-medium text-slate-400">
-                      <li className="flex gap-3"><i className="fas fa-microphone-alt text-blue-400 mt-0.5"></i> Export script to your favorite editor.</li>
-                      <li className="flex gap-3"><i className="fas fa-hashtag text-blue-400 mt-0.5"></i> Copy keywords into YouTube tags.</li>
-                      <li className="flex gap-3"><i className="fas fa-lightbulb text-blue-400 mt-0.5"></i> Start filming based on the narrative.</li>
+                      <li className="flex gap-3"><i className="fas fa-microphone-alt text-blue-400 mt-0.5"></i> Download WAV narration and drop it into your editor.</li>
+                      <li className="flex gap-3"><i className="fas fa-images text-blue-400 mt-0.5"></i> Use storyboard scenes as visual references for filming.</li>
+                      <li className="flex gap-3"><i className="fas fa-hashtag text-blue-400 mt-0.5"></i> Paste keywords directly into YouTube tags.</li>
                    </ul>
                    <button 
                      onClick={() => window.location.reload()}
