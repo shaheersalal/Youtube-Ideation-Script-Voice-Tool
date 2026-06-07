@@ -14,7 +14,7 @@ const STEP_ICONS: Record<string, string> = {
   ideas:         "fa-lightbulb",
   scripts:       "fa-file-alt",
   voice_preview: "fa-headphones",
-  full_audio:    "fa-waveform-lines",
+  full_audio:    "fa-headphones",
   scene_images:  "fa-images",
   keywords:      "fa-hashtag",
 };

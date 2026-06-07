@@ -4,7 +4,8 @@ export enum Step {
   IDEAS = 1,
   SCRIPTS = 2,
   VOICE_SELECTION = 3,
-  FINAL_SUMMARY = 4
+  FULL_AUDIO = 4,
+  FINAL_SUMMARY = 5
 }
 
 export interface VideoIdea {

@@ -2,7 +2,10 @@
 import React, { useState, useRef } from 'react';
 import { Step, AppState, VideoIdea, ScriptOption, VoiceOption } from './types';
 import { StepIndicator } from './components/StepIndicator';
+import { PermissionGate } from './components/PermissionGate';
 import * as pipeline from './services/pipeline';
+import { PipelineStep } from './services/pipeline';
+import { estimateStep, CostEstimate } from './services/costEstimator';
 
 const MALE_VOICES: VoiceOption[] = [
   { id: '1', name: 'Charon', gender: 'male', voiceName: 'Charon' },
@@ -59,6 +62,29 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeScriptId, setActiveScriptId] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  interface GateAction {
+    stepKey: PipelineStep;
+    title: string;
+    description: string;
+    estimate: CostEstimate;
+    run: () => Promise<void>;
+  }
+  const [pendingGate, setPendingGate] = useState<GateAction | null>(null);
+
+  const confirmGate = async () => {
+    if (!pendingGate) return;
+    const { run } = pendingGate;
+    setPendingGate(null);
+    setLoading(true);
+    try {
+      await run();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getAudioContext = () => {
     if (!audioContextRef.current) {
@@ -126,6 +152,27 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const requestAudioGeneration = () => {
+    if (!state.selectedVoice || !state.selectedScript) return;
+    const charCount = state.selectedScript.content.length;
+    const chunkCount = Math.ceil(charCount / 4000);
+    const estimate = estimateStep(PipelineStep.FULL_AUDIO, { charCount, chunkCount });
+    setPendingGate({
+      stepKey: PipelineStep.FULL_AUDIO,
+      title: "Full Audio",
+      description: `Synthesize the complete script as a WAV file narrated by ${state.selectedVoice.name}. Scripts longer than 4,000 characters are auto-chunked and merged.`,
+      estimate,
+      run: async () => {
+        setLoadingMsg(`Synthesizing narration with ${state.selectedVoice!.name} — this may take a moment...`);
+        const output = await pipeline.generateFullAudio(
+          state.selectedScript!.content,
+          state.selectedVoice!.voiceName
+        );
+        setState(prev => ({ ...prev, audioOutput: output, currentStep: Step.FULL_AUDIO }));
+      },
+    });
   };
 
   const finalizeProject = async () => {
@@ -324,12 +371,12 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex justify-center mt-12">
-               <button 
+               <button
                  disabled={!state.selectedVoice}
-                 onClick={finalizeProject}
-                 className="px-16 py-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-3xl font-black text-xl shadow-2xl shadow-blue-500/20 transition-all active:scale-95"
+                 onClick={requestAudioGeneration}
+                 className="px-16 py-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-3xl font-black text-xl shadow-2xl shadow-blue-500/20 transition-all active:scale-95 flex items-center gap-4"
                >
-                 FINALIZE CONTENT
+                 <i className="fas fa-headphones"></i> GENERATE AUDIO
                </button>
             </div>
           </div>
@@ -434,6 +481,71 @@ const App: React.FC = () => {
           </div>
         );
 
+      case Step.FULL_AUDIO:
+        return (
+          <div className="max-w-xl mx-auto space-y-8 animate-fadeIn">
+            <div className="text-center space-y-3">
+              <div className="w-20 h-20 bg-blue-500/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
+                <i className="fas fa-headphones text-blue-400 text-3xl"></i>
+              </div>
+              <h2 className="text-4xl font-black tracking-tighter">Audio Synthesized</h2>
+              <p className="text-slate-500">Your script narration is ready to download.</p>
+            </div>
+
+            {state.audioOutput && (
+              <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 space-y-8">
+                <div className="flex items-center gap-5 pb-6 border-b border-slate-800">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                    state.selectedVoice?.gender === 'male' ? 'bg-blue-500/20 text-blue-400' : 'bg-pink-500/20 text-pink-400'
+                  }`}>
+                    <i className={`fas ${state.selectedVoice?.gender === 'male' ? 'fa-mars' : 'fa-venus'} text-xl`}></i>
+                  </div>
+                  <div>
+                    <p className="text-xl font-black">{state.selectedVoice?.name}</p>
+                    <p className="text-slate-600 text-xs font-bold uppercase tracking-widest">NARRATOR · PREMIUM VOICE</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-black/40 p-6 rounded-2xl border border-slate-800 text-center">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">DURATION</p>
+                    <p className="text-2xl font-black text-blue-400">
+                      {Math.floor(state.audioOutput.durationSeconds / 60)}:{String(Math.floor(state.audioOutput.durationSeconds % 60)).padStart(2, '0')}
+                    </p>
+                  </div>
+                  <div className="bg-black/40 p-6 rounded-2xl border border-slate-800 text-center">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">FILE SIZE</p>
+                    <p className="text-2xl font-black text-blue-400">
+                      {(state.audioOutput.sizeBytes / 1024).toFixed(1)} <span className="text-sm font-bold">KB</span>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const url = URL.createObjectURL(state.audioOutput!.blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${state.selectedIdea?.title ?? 'Narration'}_Audio.wav`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="w-full py-5 bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 rounded-2xl font-black tracking-widest text-sm transition-all flex items-center justify-center gap-3 active:scale-95"
+                >
+                  <i className="fas fa-download"></i> DOWNLOAD WAV
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={finalizeProject}
+              className="w-full py-5 bg-blue-600 hover:bg-blue-500 rounded-3xl font-black text-lg shadow-2xl shadow-blue-500/20 transition-all active:scale-95"
+            >
+              GENERATE SEO &amp; SUMMARY
+            </button>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -441,6 +553,16 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 pb-20 text-slate-100 selection:bg-blue-500 selection:text-white">
+      {pendingGate && (
+        <PermissionGate
+          isOpen={true}
+          stepTitle={pendingGate.title}
+          stepDescription={pendingGate.description}
+          estimate={pendingGate.estimate}
+          onConfirm={confirmGate}
+          onBack={() => setPendingGate(null)}
+        />
+      )}
       <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur-3xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-6 flex justify-between items-center">
           <div className="flex items-center gap-5 group cursor-default">
@@ -491,11 +613,14 @@ const App: React.FC = () => {
            </button>
            <div className="flex flex-col items-center min-w-[100px]">
              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">PROGRESS</span>
-             <span className="text-xl font-black text-white">{state.currentStep + 1} <span className="text-slate-700">/ 5</span></span>
+             <span className="text-xl font-black text-white">{state.currentStep + 1} <span className="text-slate-700">/ 6</span></span>
            </div>
            <button 
              onClick={handleNext}
-             disabled={state.currentStep === Step.VOICE_SELECTION && !state.selectedVoice}
+             disabled={
+               (state.currentStep === Step.VOICE_SELECTION && !state.selectedVoice) ||
+               (state.currentStep === Step.FULL_AUDIO && !state.audioOutput)
+             }
              className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center hover:bg-blue-500 disabled:opacity-50 transition-all active:scale-90 shadow-2xl shadow-blue-500/30"
            >
              <i className="fas fa-chevron-right"></i>
