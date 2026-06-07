@@ -4,6 +4,22 @@ import { Step, AppState, VideoIdea, ScriptOption, VoiceOption } from './types';
 import { StepIndicator } from './components/StepIndicator';
 import * as aiService from './services/gemini';
 
+const MALE_VOICES: VoiceOption[] = [
+  { id: '1', name: 'Charon', gender: 'male', voiceName: 'Charon' },
+  { id: '2', name: 'Fenrir', gender: 'male', voiceName: 'Fenrir' },
+  { id: '3', name: 'Kore',   gender: 'male', voiceName: 'Kore' },
+  { id: '4', name: 'Puck',   gender: 'male', voiceName: 'Puck' },
+  { id: '5', name: 'Zephyr', gender: 'male', voiceName: 'Zephyr' },
+];
+
+const FEMALE_VOICES: VoiceOption[] = [
+  { id: 'f1', name: 'Aria', gender: 'female', voiceName: 'Kore' },
+  { id: 'f2', name: 'Luna', gender: 'female', voiceName: 'Puck' },
+  { id: 'f3', name: 'Nova', gender: 'female', voiceName: 'Zephyr' },
+  { id: 'f4', name: 'Lyra', gender: 'female', voiceName: 'Charon' },
+  { id: 'f5', name: 'Iris', gender: 'female', voiceName: 'Fenrir' },
+];
+
 // Audio decoding utilities as per @google/genai guidelines
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -51,8 +67,9 @@ const App: React.FC = () => {
     return audioContextRef.current;
   };
 
-  const handleNext = () => setState(prev => ({ ...prev, currentStep: prev.currentStep + 1 }));
-  const handlePrev = () => setState(prev => ({ ...prev, currentStep: prev.currentStep - 1 }));
+  const LAST_STEP = Step.FINAL_SUMMARY;
+  const handleNext = () => setState(prev => ({ ...prev, currentStep: Math.min(prev.currentStep + 1, LAST_STEP) as Step }));
+  const handlePrev = () => setState(prev => ({ ...prev, currentStep: Math.max(prev.currentStep - 1, Step.DOMAIN_INPUT) as Step }));
 
   const generateIdeas = async () => {
     if (!state.domain) return;
@@ -81,37 +98,14 @@ const App: React.FC = () => {
     }
   };
 
-  const selectScript = async (script: ScriptOption) => {
-    setLoading(true);
-    setLoadingMsg('Preparing high-quality AI voices...');
-    try {
-      const voiceOptions: VoiceOption[] = state.voiceGender === 'male' 
-        ? [
-            { id: '1', name: 'Charon', gender: 'male', voiceName: 'Charon' },
-            { id: '2', name: 'Fenrir', gender: 'male', voiceName: 'Fenrir' },
-            { id: '3', name: 'Kore', gender: 'male', voiceName: 'Kore' },
-            { id: '4', name: 'Puck', gender: 'male', voiceName: 'Puck' },
-            { id: '5', name: 'Zephyr', gender: 'male', voiceName: 'Zephyr' },
-          ]
-        : [
-            { id: 'f1', name: 'Aria', gender: 'female', voiceName: 'Kore' },
-            { id: 'f2', name: 'Luna', gender: 'female', voiceName: 'Puck' },
-            { id: 'f3', name: 'Nova', gender: 'female', voiceName: 'Zephyr' },
-            { id: 'f4', name: 'Lyra', gender: 'female', voiceName: 'Charon' },
-            { id: 'f5', name: 'Iris', gender: 'female', voiceName: 'Fenrir' },
-          ];
-
-      setState(prev => ({ 
-        ...prev, 
-        selectedScript: script, 
-        voices: voiceOptions, 
-        currentStep: Step.VOICE_SELECTION 
-      }));
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const selectScript = (script: ScriptOption) => {
+    const voiceOptions = state.voiceGender === 'male' ? MALE_VOICES : FEMALE_VOICES;
+    setState(prev => ({
+      ...prev,
+      selectedScript: script,
+      voices: voiceOptions,
+      currentStep: Step.VOICE_SELECTION,
+    }));
   };
 
   const playVoice = async (voice: VoiceOption, fullScript: boolean = false) => {
